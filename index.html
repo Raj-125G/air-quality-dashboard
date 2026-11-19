@@ -1,0 +1,2001 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AeroPulse • Air Quality & Weather Intelligence Network</title>
+
+  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Leaflet CSS & JS for Interactive Map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Chart.js CDN for High-Performance Canvas Charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#F4F7FE',
+              100: '#E9EDF7',
+              500: '#4318FF',
+              600: '#3311CC',
+              dark: '#1B2559',
+              subtle: '#707EAE',
+              muted: '#A3AED0'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    * {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: #F4F7FE;
+      color: #1B2559;
+      min-height: 100vh;
+      margin: 0;
+      padding: 1rem 1.25rem 2rem;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Crisp White Rounded Cards matching reference */
+    .dashboard-card {
+      background: #FFFFFF;
+      border: 1px solid #E9EDF7;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px -2px rgba(112, 144, 176, 0.12);
+      transition: all 0.2s ease-in-out;
+    }
+
+    .dashboard-card:hover {
+      box-shadow: 0 8px 30px -4px rgba(112, 144, 176, 0.18);
+    }
+
+    /* Top Navigation Pills */
+    .nav-pill {
+      padding: 5px 12px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 700;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      text-decoration: none;
+    }
+
+    .nav-pill-active {
+      background: #4318FF;
+      color: #FFFFFF;
+      box-shadow: 0 2px 8px rgba(67, 24, 255, 0.25);
+    }
+
+    .nav-pill-inactive {
+      background: #FFFFFF;
+      color: #707EAE;
+      border: 1px solid #E9EDF7;
+    }
+
+    .nav-pill-inactive:hover {
+      background: #F4F7FE;
+      color: #1B2559;
+    }
+
+    /* Concentric Multi-Ring Heat-Zone Markers */
+    .heat-ring-marker {
+      position: relative;
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    /* Outer pulsating halo ring */
+    .heat-ring-outer {
+      position: absolute;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      opacity: 0.35;
+      animation: pulseWave 2.4s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+    }
+
+    /* Middle diffuse glow ring */
+    .heat-ring-mid {
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      opacity: 0.55;
+    }
+
+    /* Inner solid core with white border */
+    .heat-ring-core {
+      position: relative;
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: #FFFFFF;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      z-index: 2;
+    }
+
+    @keyframes pulseWave {
+      0% {
+        transform: scale(0.45);
+        opacity: 0.85;
+      }
+      70% {
+        transform: scale(1.15);
+        opacity: 0.15;
+      }
+      100% {
+        transform: scale(1.3);
+        opacity: 0;
+      }
+    }
+
+    /* Map Pill Layer Toggles */
+    .map-pill {
+      padding: 5px 12px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .map-pill-active {
+      background: #1B2559;
+      color: #FFFFFF;
+      box-shadow: 0 2px 8px rgba(27, 37, 89, 0.25);
+    }
+
+    .map-pill-inactive {
+      background: rgba(255, 255, 255, 0.95);
+      color: #707EAE;
+      border: 1px solid #E9EDF7;
+    }
+
+    .map-pill-inactive:hover {
+      background: #FFFFFF;
+      color: #1B2559;
+    }
+
+    /* Floating Map Action Buttons */
+    .map-action-btn {
+      background: #FFFFFF;
+      border: 1px solid #E9EDF7;
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 10px rgba(112, 144, 176, 0.18);
+      cursor: pointer;
+      color: #2B3674;
+      font-weight: 700;
+      transition: all 0.15s ease;
+    }
+
+    .map-action-btn:hover {
+      background: #F4F7FE;
+      color: #4318FF;
+      transform: scale(1.05);
+    }
+
+    /* Custom Tooltip */
+    .custom-tooltip {
+      position: absolute;
+      background: #1B2559;
+      color: #FFFFFF;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      pointer-events: none;
+      display: none;
+      z-index: 1000;
+      box-shadow: 0 10px 25px rgba(27, 37, 89, 0.35);
+    }
+
+    /* Day pill interactive */
+    .day-pill {
+      cursor: pointer;
+      transition: all 0.15s ease;
+      border-radius: 12px;
+      padding: 6px 4px;
+      border: 1px solid transparent;
+    }
+
+    .day-pill:hover {
+      background: #F4F7FE;
+      transform: translateY(-2px);
+    }
+
+    .day-pill.active {
+      background: #E9EDF7;
+      border-color: #4318FF;
+    }
+
+    /* Modal Backdrop */
+    .modal-backdrop {
+      background: rgba(27, 37, 89, 0.65);
+      backdrop-filter: blur(6px);
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #F4F7FE;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #A3AED0;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #707EAE;
+    }
+  </style>
+</head>
+<body class="flex flex-col gap-3.5 max-w-[1640px] mx-auto select-none">
+
+  <!-- Floating Custom Tooltip Element -->
+  <div id="chartTooltip" class="custom-tooltip"></div>
+
+  <!-- ============================================================== -->
+  <!-- 1. TOP HEADER BAR WITH GLOBAL NAVIGATION                      -->
+  <!-- ============================================================== -->
+  <header class="flex flex-wrap items-center justify-between gap-3 px-1 py-1">
+    <!-- Left: Live Status Banner with Green/Blue Dot -->
+    <div class="flex items-center gap-2.5">
+      <div class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-200/80 shadow-sm">
+        <span class="relative flex h-2.5 w-2.5">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+        </span>
+        <span class="text-xs font-extrabold text-brand-dark tracking-wide uppercase">
+          LIVE PIPELINE:
+        </span>
+        <span class="text-xs font-semibold text-slate-600">
+          Multi-station sensor data cleaned & imputed
+        </span>
+        <span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+          100% Completeness
+        </span>
+      </div>
+
+      <!-- Live Streaming Simulation Toggle -->
+      <button id="streamToggleBtn" onclick="toggleDataStream()" class="flex items-center gap-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 px-3 py-1.5 rounded-xl shadow-sm hover:bg-slate-50 transition" title="Simulate incoming real-time sensor packets">
+        <span id="streamDot" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span id="streamLabel">Stream Active</span>
+      </button>
+    </div>
+
+    <!-- Center: Global Navigation Pills (Home, Dashboard, Settings) -->
+    <nav class="flex items-center gap-1.5 bg-slate-100/90 p-1 rounded-xl shadow-inner">
+      <a href="home.html" class="nav-pill nav-pill-inactive">
+        <span>🏠</span>
+        <span>Home</span>
+      </a>
+      <a href="index.html" class="nav-pill nav-pill-active">
+        <span>📊</span>
+        <span>Dashboard</span>
+      </a>
+      <a href="settings.html" class="nav-pill nav-pill-inactive">
+        <span>⚙️</span>
+        <span>Settings</span>
+      </a>
+    </nav>
+
+    <!-- Right: City/Zone Selector Dropdown, Local Time, Export Button -->
+    <div class="flex items-center gap-2.5">
+      <!-- Interactive City / Zone Selector Dropdown -->
+      <div class="relative">
+        <button id="locationBtn" onclick="toggleLocationDropdown()" class="flex items-center gap-2 text-xs font-bold text-brand-dark bg-white border border-slate-200 px-3.5 py-1.5 rounded-xl shadow-sm hover:bg-slate-50 transition">
+          <svg class="w-3.5 h-3.5 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+          </svg>
+          <span id="locationLabel">All Zones (Metropolitan Basin)</span>
+          <svg class="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
+        </button>
+
+        <!-- Dropdown Menu Options -->
+        <div id="locationDropdown" class="hidden absolute right-0 mt-1.5 w-72 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 py-2 text-xs font-medium text-slate-700">
+          <div class="px-3.5 py-1 text-[10px] text-brand-subtle uppercase font-extrabold tracking-wider">Select Regional Monitoring Zone</div>
+          
+          <button onclick="changeZone('ALL', 'All Zones (Metropolitan Basin)')" class="w-full text-left px-3.5 py-2 hover:bg-sky-50 flex items-center justify-between transition">
+            <div>
+              <div class="font-bold text-brand-dark">All Zones (Metropolitan Basin)</div>
+              <div class="text-[10px] text-slate-400">5 Continuous Monitoring Stations</div>
+            </div>
+            <span class="text-[10px] bg-brand-100 text-brand-500 font-bold px-2 py-0.5 rounded-full">Default</span>
+          </button>
+
+          <button onclick="changeZone('STN_002', 'North Industrial Estate')" class="w-full text-left px-3.5 py-2 hover:bg-sky-50 flex items-center justify-between transition">
+            <div>
+              <div class="font-bold text-brand-dark">North Industrial Estate</div>
+              <div class="text-[10px] text-slate-400">Heavy Industrial • Smelting & Boilers</div>
+            </div>
+            <span class="text-[11px] text-rose-500 font-extrabold font-mono">115.8 µg</span>
+          </button>
+
+          <button onclick="changeZone('STN_005', 'Port Freight Logistics')" class="w-full text-left px-3.5 py-2 hover:bg-sky-50 flex items-center justify-between transition">
+            <div>
+              <div class="font-bold text-brand-dark">Port Freight Logistics</div>
+              <div class="text-[10px] text-slate-400">Commercial / Transport • Drayage Trucks</div>
+            </div>
+            <span class="text-[11px] text-orange-500 font-extrabold font-mono">92.4 µg</span>
+          </button>
+
+          <button onclick="changeZone('STN_001', 'Central Metro Hub')" class="w-full text-left px-3.5 py-2 hover:bg-sky-50 flex items-center justify-between transition">
+            <div>
+              <div class="font-bold text-brand-dark">Central Metro Hub</div>
+              <div class="text-[10px] text-slate-400">Commercial / Urban Core • Traffic Plumes</div>
+            </div>
+            <span class="text-[11px] text-amber-500 font-extrabold font-mono">72.0 µg</span>
+          </button>
+
+          <button onclick="changeZone('STN_004', 'South Tech Campus')" class="w-full text-left px-3.5 py-2 hover:bg-sky-50 flex items-center justify-between transition">
+            <div>
+              <div class="font-bold text-brand-dark">South Tech Campus</div>
+              <div class="text-[10px] text-slate-400">Institutional / Mixed • Suburban Buffer</div>
+            </div>
+            <span class="text-[11px] text-sky-600 font-extrabold font-mono">54.0 µg</span>
+          </button>
+
+          <button onclick="changeZone('STN_003', 'Riverside Eco Sanctuary')" class="w-full text-left px-3.5 py-2 hover:bg-sky-50 flex items-center justify-between transition">
+            <div>
+              <div class="font-bold text-brand-dark">Riverside Eco Sanctuary</div>
+              <div class="text-[10px] text-slate-400">Residential / Green Belt • Vegetative Sink</div>
+            </div>
+            <span class="text-[11px] text-emerald-600 font-extrabold font-mono">38.4 µg</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Local Time Display -->
+      <div class="bg-white border border-slate-200 px-3.5 py-1.5 rounded-xl shadow-sm flex items-center gap-1.5 text-xs font-bold text-brand-dark font-mono">
+        <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <span id="liveClockDisplay">Local Time: 14:45:00</span>
+      </div>
+
+      <!-- Export Report Button -->
+      <button onclick="openModal('reportModal')" class="flex items-center gap-1.5 bg-brand-500 hover:bg-brand-600 text-white font-bold text-xs px-4 py-1.5 rounded-xl shadow-md shadow-brand-500/20 transition">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+        </svg>
+        Export Report
+      </button>
+    </div>
+  </header>
+
+  <!-- ============================================================== -->
+  <!-- 2. MAIN GRID STRUCTURE (BENTO 3-COLUMN / 2-ROW LAYOUT)         -->
+  <!-- ============================================================== -->
+  <main class="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1">
+
+    <!-- ============================================================ -->
+    <!-- LEFT & CENTER TOP: INTERACTIVE MAP CARD (~65% width / 8 cols)-->
+    <!-- ============================================================ -->
+    <div class="lg:col-span-8 flex flex-col gap-4">
+
+      <!-- Map Card -->
+      <div class="dashboard-card relative overflow-hidden p-2 flex flex-col" style="height: 480px; min-height: 480px;">
+
+        <!-- Leaflet Map Canvas Container -->
+        <div id="mapContainer" class="w-full h-full rounded-2xl z-10"></div>
+
+        <!-- Floating Badge: Active Alerts (Top-Left of Map) -->
+        <div onclick="openModal('alertsModal')" class="absolute top-5 left-5 z-[400] bg-white/95 backdrop-blur-md border border-slate-200/90 px-3.5 py-2 rounded-2xl shadow-md flex items-center gap-2 cursor-pointer hover:bg-white hover:scale-105 transition">
+          <span class="flex h-2.5 w-2.5 relative">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+          </span>
+          <span class="text-xs font-extrabold text-brand-dark">4 Active Pollution & Weather Alerts</span>
+          <span class="text-[10px] text-brand-500 font-bold ml-0.5">View →</span>
+        </div>
+
+        <!-- Floating Map Layer Toggle Pills (Top-Center of Map) -->
+        <div class="absolute top-5 left-1/2 -translate-x-1/2 z-[400] bg-white/95 backdrop-blur-md border border-slate-200/90 p-1 rounded-full shadow-md flex items-center gap-1 text-xs">
+          <button id="pillPositron" onclick="switchMapLayer('positron')" class="map-pill map-pill-active">
+            <span>🗺️</span> Map (Clean)
+          </button>
+          <button id="pillOsm" onclick="switchMapLayer('osm')" class="map-pill map-pill-inactive">
+            <span>🌐</span> OpenStreetMap
+          </button>
+          <button id="pillSatellite" onclick="switchMapLayer('satellite')" class="map-pill map-pill-inactive">
+            <span>🛰️</span> Satellite
+          </button>
+        </div>
+
+        <!-- Floating Controls (Top-Right of Map) -->
+        <div class="absolute top-5 right-5 z-[400] flex flex-col gap-2">
+          <button class="map-action-btn" onclick="toggleHeatmapPlumes()" title="Toggle Atmospheric Plume Dispersions">
+            <svg class="w-4 h-4 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path>
+            </svg>
+          </button>
+          <button class="map-action-btn" onclick="resetMapOrientation()" title="Recenter Map View">
+            <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Floating Zoom Controls (Bottom-Right of Map) -->
+        <div class="absolute bottom-5 right-5 z-[400] flex flex-col gap-2">
+          <button class="map-action-btn font-extrabold text-base text-slate-700" onclick="mapZoomIn()">+</button>
+          <button class="map-action-btn font-extrabold text-base text-slate-700" onclick="mapZoomOut()">−</button>
+        </div>
+
+        <!-- Live Map Status Badge (Bottom-Left of Map) -->
+        <div class="absolute bottom-5 left-5 z-[400] bg-white/90 backdrop-blur-sm border border-slate-200/80 px-2.5 py-1 rounded-lg text-[10px] text-slate-600 font-semibold flex items-center gap-1.5 shadow-sm pointer-events-none">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+          <span>CartoDB Positron Engine • No Tile Errors</span>
+        </div>
+      </div>
+
+      <!-- ============================================================ -->
+      <!-- BOTTOM ROW OF LEFT COLUMN: REGIONAL EXTREMES & AQI TRENDS     -->
+      <!-- ============================================================ -->
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+
+        <!-- Bottom-Left Card (4 cols): Regional Extremes & Statistical Significance -->
+        <div class="md:col-span-4 dashboard-card p-4 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-1.5">
+                <span class="text-xs font-bold text-brand-dark">Regional Extremes & Significance</span>
+                <span class="text-[10px] font-bold text-brand-subtle bg-slate-100 px-2 py-0.5 rounded-full">Pipeline QA</span>
+              </div>
+              <button onclick="openModal('statsModal')" class="text-slate-400 hover:text-brand-500 transition" title="Statistical Hypotheses">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              </button>
+            </div>
+
+            <!-- Soft Amber Alert Callout Box -->
+            <div onclick="openModal('alertsModal')" class="bg-amber-50/90 border border-amber-200/90 rounded-2xl p-3 mb-3 text-[11px] text-amber-900 leading-relaxed cursor-pointer hover:bg-amber-100/80 transition">
+              <div class="font-bold flex items-center gap-1 mb-0.5 text-amber-800">
+                <span>⚠️</span> Extreme Pollution Alert: North Industrial
+              </div>
+              Industrial boilers and diesel transit driving PM2.5 to 115.8 µg/m³. Outlier filtering removed 2,573 non-physical spikes.
+            </div>
+
+            <!-- Meteorological Extremes -->
+            <div class="space-y-2.5 text-xs mb-3">
+              <div class="flex items-center justify-between pb-1.5 border-b border-slate-100">
+                <span class="text-slate-500 flex items-center gap-1.5">
+                  <span>💨</span> MAX WIND GUST
+                </span>
+                <span id="maxWindDisplay" class="font-extrabold text-brand-dark font-mono text-sm">42 km/h</span>
+              </div>
+              <div class="flex items-center justify-between pb-1.5 border-b border-slate-100">
+                <span class="text-slate-500 flex items-center gap-1.5">
+                  <span>🌧️</span> TOTAL RAINFALL
+                </span>
+                <span id="totalRainDisplay" class="font-extrabold text-brand-dark font-mono text-sm">45.2 mm</span>
+              </div>
+            </div>
+
+            <!-- Crucial Mini-Project Requirement: Statistical Significance Summary Badges -->
+            <div class="bg-brand-50 border border-brand-100 rounded-xl p-2.5 mb-2">
+              <div class="text-[10px] uppercase font-extrabold text-brand-500 tracking-wider mb-1.5 flex items-center justify-between">
+                <span>Statistical Hypothesis Tests</span>
+                <span class="text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded font-bold">p &lt; 0.001</span>
+              </div>
+              <div class="space-y-1.5 text-[11px]">
+                <div class="flex justify-between items-center">
+                  <span class="text-slate-600 font-medium">Zone Differences (ANOVA):</span>
+                  <span class="font-bold text-brand-dark font-mono">F = 10,287.3***</span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="text-slate-600 font-medium">Seasonal Cycles (ANOVA):</span>
+                  <span class="font-bold text-brand-dark font-mono">F = 3,288.1***</span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="text-slate-600 font-medium">Kruskal-Wallis Rank H:</span>
+                  <span class="font-bold text-brand-dark font-mono">H = 28,275.8***</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Generate Statistical Report Button -->
+          <button onclick="openModal('statsModal')" class="w-full mt-2 py-2 bg-slate-50 hover:bg-slate-100 text-brand-dark font-bold text-xs rounded-xl border border-slate-200 transition shadow-sm flex items-center justify-center gap-1.5">
+            <svg class="w-3.5 h-3.5 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+            Generate Statistical Report
+          </button>
+        </div>
+
+        <!-- Bottom-Center Card (8 cols): AQI Trends & Seasonal Patterns -->
+        <div class="md:col-span-8 dashboard-card p-4 flex flex-col justify-between">
+          <div>
+            <!-- Header with Pollutant Filters and Raw vs Cleaned Toggle -->
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-brand-dark">Air Quality Index (AQI) Trends & Seasonal Patterns</span>
+                <span id="trendSubtitle" class="text-[10px] text-slate-400 font-medium">Jan - Sep 2026</span>
+              </div>
+
+              <div class="flex items-center gap-2">
+                <!-- Pollutant Filter Buttons -->
+                <div class="flex items-center bg-slate-100 p-0.5 rounded-lg text-[10px] font-bold">
+                  <button id="pollutantBtn_PM25" onclick="setPollutant('PM25')" class="px-2 py-0.5 rounded-md bg-white text-brand-500 shadow-sm transition">PM2.5</button>
+                  <button id="pollutantBtn_PM10" onclick="setPollutant('PM10')" class="px-2 py-0.5 rounded-md text-slate-600 hover:text-brand-dark transition">PM10</button>
+                  <button id="pollutantBtn_NO2" onclick="setPollutant('NO2')" class="px-2 py-0.5 rounded-md text-slate-600 hover:text-brand-dark transition">NO₂</button>
+                  <button id="pollutantBtn_AQI" onclick="setPollutant('AQI')" class="px-2 py-0.5 rounded-md text-slate-600 hover:text-brand-dark transition">AQI</button>
+                </div>
+
+                <!-- Raw vs Cleaned Toggle Switch -->
+                <button id="cleanToggleBtn" onclick="toggleDataCleaningView()" class="text-[10px] font-bold px-2.5 py-1 rounded-full border transition flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border-emerald-200">
+                  <span id="cleanToggleIcon" class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  <span id="cleanToggleText">Cleaned & Imputed Data</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Stepped/Line Area Chart Canvas -->
+            <div class="w-full relative" style="height: 190px;">
+              <canvas id="aqiTrendCanvas"></canvas>
+            </div>
+          </div>
+
+          <!-- Bottom Footer Bar of AQI Card -->
+          <div class="flex flex-wrap items-center justify-between pt-2 border-t border-slate-100 text-[11px] text-slate-500 mt-1">
+            <span id="seasonalInsightText" class="flex items-center gap-1">
+              <span>🌦️</span> <strong>Monsoon rain scavenging:</strong> May-Jul precipitation washes out PM2.5 to annual minimum (~48 µg).
+            </span>
+            <span class="font-extrabold text-emerald-600 flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              100% Imputed Completeness
+            </span>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- RIGHT COLUMN: DETAIL OVERVIEW & FORECAST SIDEBAR (35% / 4 cols)-->
+    <!-- ============================================================ -->
+    <div class="lg:col-span-4 flex flex-col gap-4">
+
+      <!-- Sidebar Top Header -->
+      <div class="flex items-center justify-between px-1">
+        <h2 class="text-xs font-bold text-brand-dark uppercase tracking-wider">Detail Overview & Forecast</h2>
+        <span class="text-xs font-bold text-brand-subtle font-mono" id="sidebarStationBadge">Metropolitan Basin</span>
+      </div>
+
+      <!-- CARD 1: CURRENT CONDITIONS CARD -->
+      <div class="dashboard-card p-4">
+        <div class="flex items-start justify-between">
+          <div class="flex items-center gap-3.5">
+            <!-- Weather Condition Icon Box -->
+            <div id="weatherIconBox" class="w-12 h-12 rounded-2xl bg-brand-50 border border-brand-100 flex items-center justify-center text-3xl shadow-sm">
+              🌧️
+            </div>
+            <div>
+              <div class="flex items-baseline gap-1">
+                <span class="text-3xl font-extrabold text-brand-dark tracking-tight" id="detailTemp">26</span>
+                <span class="text-base font-bold text-slate-400 cursor-pointer hover:text-brand-500 transition" onclick="toggleTempUnit()" title="Click to toggle °C / °F" id="tempUnit">°C</span>
+                <span id="detailAqiBadge" class="ml-2 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800">
+                  AQI 48 • Good
+                </span>
+              </div>
+              <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Current Weather & AQI</div>
+              <div class="text-xs font-bold text-brand-dark" id="detailCondition">Heavy Rain & Particulate Washout</div>
+            </div>
+          </div>
+
+          <!-- Card Option Menu -->
+          <div class="relative">
+            <button onclick="toggleCardMenu('menuDetail')" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"></path></svg>
+            </button>
+            <div id="menuDetail" class="hidden absolute right-0 mt-1 w-44 bg-white border border-slate-200 rounded-xl shadow-lg z-50 py-1 text-xs">
+              <button onclick="toggleTempUnit(); toggleCardMenu('menuDetail')" class="w-full text-left px-3 py-1.5 hover:bg-sky-50">Toggle °C / °F</button>
+              <button onclick="openModal('stationDetailModal'); toggleCardMenu('menuDetail')" class="w-full text-left px-3 py-1.5 hover:bg-sky-50">Sensor Node Diagnostics</button>
+            </div>
+          </div>
+        </div>
+
+        <p class="text-xs text-slate-500 mt-2.5 leading-relaxed" id="detailDescription">
+          Active convective rainfall front depositing aerosols via precipitation scavenging. Planetary boundary layer ventilated.
+        </p>
+
+        <!-- 3-Column Mini-Grid for Humidity, Wind Speed, and Atmospheric Pressure -->
+        <div class="grid grid-cols-3 gap-2 py-3 my-2 border-y border-slate-100 text-center">
+          <div>
+            <div class="text-[9px] text-slate-400 uppercase font-bold tracking-wider">Humidity</div>
+            <div class="text-sm font-extrabold text-brand-dark mt-0.5" id="detailHumidity">88%</div>
+          </div>
+          <div>
+            <div class="text-[9px] text-slate-400 uppercase font-bold tracking-wider">Wind Speed</div>
+            <div class="text-sm font-extrabold text-brand-dark mt-0.5" id="detailWind">15 km/h NW</div>
+          </div>
+          <div>
+            <div class="text-[9px] text-slate-400 uppercase font-bold tracking-wider">Pressure</div>
+            <div class="text-sm font-extrabold text-brand-dark mt-0.5" id="detailPressure">1010 hPa</div>
+          </div>
+        </div>
+
+        <button onclick="openModal('stationDetailModal')" class="w-full flex items-center justify-between text-xs font-bold text-brand-500 hover:text-brand-600 pt-0.5">
+          <span>Sensor Node Calibration Stream</span>
+          <span>→</span>
+        </button>
+      </div>
+
+      <!-- CARD 2: 7-DAY / SEASONAL FORECAST CARD -->
+      <div class="dashboard-card p-4">
+        <div class="flex items-center justify-between mb-1">
+          <div class="flex items-center gap-1.5">
+            <span class="text-xs font-bold text-brand-dark">7-Day Seasonal Forecast</span>
+            <span class="text-[10px] text-brand-subtle font-medium">May 2026</span>
+          </div>
+          <button onclick="openModal('forecastModal')" class="text-brand-500 hover:text-brand-600 text-[11px] font-bold">
+            14-Day Synoptic →
+          </button>
+        </div>
+        <p class="text-[11px] text-slate-500 mb-3">
+          Hourly forecast of precipitation, wind dispersal, and projected particulate concentrations.
+        </p>
+
+        <!-- Clean Horizontal 7-Day Strip -->
+        <div class="grid grid-cols-7 gap-1 text-center py-1" id="forecastStrip">
+          <!-- Populated dynamically via JS with active day selection -->
+        </div>
+
+        <!-- Action Button: Run Atmospheric Diagnostics -->
+        <button onclick="openModal('diagnosticsModal')" class="w-full mt-3 py-2.5 bg-brand-50 hover:bg-brand-100 text-brand-500 font-bold text-xs rounded-xl border border-brand-100 transition flex items-center justify-center gap-1.5 shadow-sm">
+          <span>🔬</span>
+          <span>Run Atmospheric Diagnostics</span>
+        </button>
+      </div>
+
+      <!-- CARD 3: PRECIPITATION & PARTICULATE SCAVENGING CARD -->
+      <div class="dashboard-card p-4 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs font-bold text-brand-dark">Precipitation & Particulate Scavenging</span>
+            <div class="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg text-[9px] font-bold">
+              <button id="precipModeRain" onclick="switchPrecipMode('rain')" class="px-2 py-0.5 rounded-md bg-white text-brand-500 shadow-sm">Rain (mm)</button>
+              <button id="precipModePm" onclick="switchPrecipMode('pm25')" class="px-2 py-0.5 rounded-md text-slate-600 hover:text-brand-dark">Washout %</button>
+            </div>
+          </div>
+          <p class="text-[11px] text-slate-500 mb-2">
+            Hourly rainfall intensity alongside particulate washout scavenging coefficient.
+          </p>
+
+          <div class="flex items-baseline justify-between mb-1.5">
+            <div>
+              <div class="text-[9px] text-slate-400 uppercase font-bold tracking-wider" id="precipLabel">Daily Rainfall</div>
+              <div class="text-base font-extrabold text-brand-dark" id="precipValue">12.4 mm <span class="text-[10px] font-normal text-slate-500">Today</span></div>
+            </div>
+            <div class="text-right">
+              <div class="text-[9px] text-slate-400 uppercase font-bold tracking-wider">Aerosol Removal</div>
+              <div class="text-sm font-extrabold text-emerald-600 font-mono">-68% PM2.5</div>
+            </div>
+          </div>
+
+          <!-- Vertical Blue Bar Chart Canvas -->
+          <div class="w-full relative" style="height: 100px;">
+            <canvas id="precipHourlyCanvas"></canvas>
+          </div>
+        </div>
+
+        <button onclick="openModal('diurnalModal')" class="w-full flex items-center justify-between text-xs font-bold text-brand-500 hover:text-brand-600 pt-2 border-t border-slate-100 mt-2">
+          <span>Diurnal Washout Physics</span>
+          <span>→</span>
+        </button>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- ============================================================== -->
+  <!-- MODAL 1: STATISTICAL TESTING LAB (ANOVA, Kruskal-Wallis, Levene)-->
+  <!-- ============================================================== -->
+  <div id="statsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
+    <div class="bg-white rounded-3xl max-w-4xl w-full max-h-[92vh] overflow-y-auto p-6 shadow-2xl border border-slate-200">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-200 mb-5">
+        <div>
+          <h3 class="text-lg font-bold text-brand-dark flex items-center gap-2">
+            <span>🔬</span> Statistical Significance & Hypothesis Testing Lab
+          </h3>
+          <p class="text-xs text-slate-500">Rigorous statistical tests evaluating whether air pollution (PM2.5, PM10, NO₂) differs significantly between urban zones and seasons.</p>
+        </div>
+        <button onclick="closeModal('statsModal')" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 font-bold">✕</button>
+      </div>
+
+      <!-- Test 1 & 2 Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+        <!-- Zone Hypothesis -->
+        <div class="bg-brand-50/50 border border-brand-100 rounded-2xl p-4">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold text-brand-dark">Test 1: Spatial Inter-Zone Differences</span>
+            <span class="text-[10px] font-bold bg-rose-50 text-rose-600 px-2 py-0.5 rounded-full border border-rose-200">Reject H₀ (p &lt; 0.0001)</span>
+          </div>
+          <table class="w-full text-xs text-left mb-2">
+            <tbody class="divide-y divide-slate-200">
+              <tr>
+                <td class="py-1.5 text-slate-500">One-Way ANOVA</td>
+                <td class="py-1.5 font-mono font-bold text-brand-dark">F = 10,287.32</td>
+                <td class="py-1.5 text-rose-600 font-bold">p = 0.000 (***)</td>
+              </tr>
+              <tr>
+                <td class="py-1.5 text-slate-500">Kruskal-Wallis H</td>
+                <td class="py-1.5 font-mono font-bold text-brand-dark">H = 28,275.79</td>
+                <td class="py-1.5 text-rose-600 font-bold">p = 0.000 (***)</td>
+              </tr>
+              <tr>
+                <td class="py-1.5 text-slate-500">Levene's Variance Test</td>
+                <td class="py-1.5 font-mono font-bold text-brand-dark">W = 2,643.67</td>
+                <td class="py-1.5 text-amber-600 font-semibold">Heteroscedastic</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="text-[11px] text-slate-600 leading-relaxed">
+            <strong>Conclusion:</strong> Spatial zoning drives 48.2% of total metropolitan variance. Industrial Estate baseline is ~3x higher than Green Sanctuary.
+          </p>
+        </div>
+
+        <!-- Season Hypothesis -->
+        <div class="bg-brand-50/50 border border-brand-100 rounded-2xl p-4">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold text-brand-dark">Test 2: Seasonal Cycles (Winter vs Monsoon)</span>
+            <span class="text-[10px] font-bold bg-rose-50 text-rose-600 px-2 py-0.5 rounded-full border border-rose-200">Reject H₀ (p &lt; 0.0001)</span>
+          </div>
+          <table class="w-full text-xs text-left mb-2">
+            <tbody class="divide-y divide-slate-200">
+              <tr>
+                <td class="py-1.5 text-slate-500">One-Way ANOVA</td>
+                <td class="py-1.5 font-mono font-bold text-brand-dark">F = 3,288.06</td>
+                <td class="py-1.5 text-rose-600 font-bold">p = 0.000 (***)</td>
+              </tr>
+              <tr>
+                <td class="py-1.5 text-slate-500">Kruskal-Wallis H</td>
+                <td class="py-1.5 font-mono font-bold text-brand-dark">H = 6,612.84</td>
+                <td class="py-1.5 text-rose-600 font-bold">p = 0.000 (***)</td>
+              </tr>
+              <tr>
+                <td class="py-1.5 text-slate-500">Shapiro-Wilk Normality</td>
+                <td class="py-1.5 font-mono font-bold text-brand-dark">W = 0.733</td>
+                <td class="py-1.5 text-amber-600 font-semibold">Log-Normal Skew</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="text-[11px] text-slate-600 leading-relaxed">
+            <strong>Conclusion:</strong> Winter nocturnal thermal inversions trap particulates (mean 148 µg/m³), while monsoon rain scavenges pollutants (mean 58 µg/m³).
+          </p>
+        </div>
+      </div>
+
+      <!-- Post-Hoc Pairwise Matrix Table -->
+      <div class="mb-5">
+        <h4 class="text-xs font-bold text-brand-dark mb-2">Post-Hoc Pairwise Comparisons (Mann-Whitney U with Bonferroni Correction & Cohen's d)</h4>
+        <div class="overflow-x-auto border border-slate-200 rounded-xl">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 text-slate-500">
+              <tr>
+                <th class="p-2.5">Station Comparison</th>
+                <th class="p-2.5">Mean Difference</th>
+                <th class="p-2.5">Bonferroni p-value</th>
+                <th class="p-2.5">Cohen's d Effect Size</th>
+                <th class="p-2.5">Significance</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 text-slate-700">
+              <tr>
+                <td class="p-2.5 font-semibold">Industrial vs Eco Sanctuary</td>
+                <td class="p-2.5 text-rose-600 font-bold">+77.4 µg/m³</td>
+                <td class="p-2.5 font-mono text-brand-500">&lt; 0.0001</td>
+                <td class="p-2.5 font-bold">d = 1.62 (Very Large)</td>
+                <td class="p-2.5"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-600">Significant (***)</span></td>
+              </tr>
+              <tr>
+                <td class="p-2.5 font-semibold">Industrial vs Tech Campus</td>
+                <td class="p-2.5 text-rose-600 font-bold">+61.7 µg/m³</td>
+                <td class="p-2.5 font-mono text-brand-500">&lt; 0.0001</td>
+                <td class="p-2.5 font-bold">d = 1.18 (Large)</td>
+                <td class="p-2.5"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-600">Significant (***)</span></td>
+              </tr>
+              <tr>
+                <td class="p-2.5 font-semibold">Port Logistics vs Eco Sanctuary</td>
+                <td class="p-2.5 text-rose-600 font-bold">+54.0 µg/m³</td>
+                <td class="p-2.5 font-mono text-brand-500">&lt; 0.0001</td>
+                <td class="p-2.5 font-bold">d = 1.24 (Large)</td>
+                <td class="p-2.5"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-600">Significant (***)</span></td>
+              </tr>
+              <tr>
+                <td class="p-2.5 font-semibold">Industrial vs Central Metro</td>
+                <td class="p-2.5 text-rose-600 font-bold">+43.8 µg/m³</td>
+                <td class="p-2.5 font-mono text-brand-500">&lt; 0.0001</td>
+                <td class="p-2.5 font-bold">d = 0.74 (Medium-Large)</td>
+                <td class="p-2.5"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-600">Significant (***)</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="flex justify-between items-center pt-3 border-t border-slate-200">
+        <button onclick="downloadCleanedCsv()" class="px-4 py-2 bg-brand-500 text-white rounded-xl text-xs font-bold hover:bg-brand-600 transition flex items-center gap-1.5">
+          <span>📥</span> Download Cleaned Dataset (CSV)
+        </button>
+        <button onclick="closeModal('statsModal')" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-200 transition">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- MODAL 2: 4 ACTIVE ALERTS DRAWER                                -->
+  <!-- ============================================================== -->
+  <div id="alertsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
+    <div class="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+        <div class="flex items-center gap-2">
+          <span class="text-amber-500 text-lg">⚠️</span>
+          <h3 class="text-base font-bold text-brand-dark">Active Weather & Air Quality Alerts (4 Active)</h3>
+        </div>
+        <button onclick="closeModal('alertsModal')" class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 font-bold text-xs">✕</button>
+      </div>
+
+      <div class="space-y-3 text-xs mb-5 max-h-[60vh] overflow-y-auto pr-1">
+        <!-- Alert 1 -->
+        <div class="p-3.5 bg-rose-50 rounded-2xl border border-rose-200">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-bold text-rose-900">1. Severe Particulate Surge (North Industrial Estate)</span>
+            <span class="px-2 py-0.5 bg-rose-600 text-white font-bold rounded-full text-[10px]">CRITICAL</span>
+          </div>
+          <p class="text-rose-800 text-[11px] leading-relaxed">
+            Industrial boilers and diesel transit pushing PM2.5 to 115.8 µg/m³. Outlier filtering active (2,573 anomalous optical spikes excised). Sensitive individuals should avoid outdoor exertion.
+          </p>
+        </div>
+
+        <!-- Alert 2 -->
+        <div class="p-3.5 bg-amber-50 rounded-2xl border border-amber-200">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-bold text-amber-900">2. Planetary Boundary-Layer Inversion (Central Metro Hub)</span>
+            <span class="px-2 py-0.5 bg-amber-500 text-white font-bold rounded-full text-[10px]">HIGH</span>
+          </div>
+          <p class="text-amber-800 text-[11px] leading-relaxed">
+            Stagnant winds (&lt; 1.5 m/s) trapping commuter vehicular NO₂ and PM2.5 near ground level. Solar convection expected to disperse inversion after midday.
+          </p>
+        </div>
+
+        <!-- Alert 3 -->
+        <div class="p-3.5 bg-sky-50 rounded-2xl border border-sky-200">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-bold text-sky-900">3. Convective Precipitation Scavenging Event (Metropolitan Wide)</span>
+            <span class="px-2 py-0.5 bg-sky-600 text-white font-bold rounded-full text-[10px]">WEATHER</span>
+          </div>
+          <p class="text-sky-800 text-[11px] leading-relaxed">
+            Heavy rainfall of 45.2 mm expected at 15:00 Local. Particulate washout will drop ambient PM2.5 by ~65% within 90 minutes.
+          </p>
+        </div>
+
+        <!-- Alert 4 -->
+        <div class="p-3.5 bg-emerald-50 rounded-2xl border border-emerald-200">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-bold text-emerald-900">4. Clean Air Sanctuary Baseline (Riverside Eco Sanctuary)</span>
+            <span class="px-2 py-0.5 bg-emerald-600 text-white font-bold rounded-full text-[10px]">OPTIMAL</span>
+          </div>
+          <p class="text-emerald-800 text-[11px] leading-relaxed">
+            Forest vegetation corridor maintaining PM2.5 at 38.4 µg/m³ (Good AQI 48). Biogenic VOC photochemistry monitoring active.
+          </p>
+        </div>
+      </div>
+
+      <div class="flex justify-end">
+        <button onclick="closeModal('alertsModal')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition">Dismiss</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- MODAL 3: DIAGNOSTICS SYNTHESIS MODAL                                     -->
+  <!-- ============================================================== -->
+  <div id="diagnosticsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
+    <div class="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+        <div class="flex items-center gap-2">
+          <span class="text-brand-500 text-lg">🔬</span>
+          <h3 class="text-base font-bold text-brand-dark">Atmospheric Dispersion & Telemetry Synthesis</h3>
+        </div>
+        <button onclick="closeModal('diagnosticsModal')" class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 font-bold text-xs">✕</button>
+      </div>
+
+      <div class="space-y-3.5 text-xs text-slate-700 mb-5 leading-relaxed">
+        <div class="p-3 bg-brand-50 rounded-2xl border border-brand-100">
+          <strong class="text-brand-dark block mb-1">🔬 Automated Analytical Synthesis (43,800 Observations Evaluated):</strong>
+          Analysis reveals that urban air quality variance is governed by two dominant orthogonal axes: <strong>Spatial Zoning (ANOVA F = 10,287.32, p &lt; 0.0001)</strong> and <strong>Atmospheric Seasonality (ANOVA F = 3,288.06, p &lt; 0.0001)</strong>.
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 text-center">
+          <div class="p-3 bg-sky-50 rounded-xl border border-sky-100">
+            <div class="text-[10px] text-sky-800 uppercase font-bold">Variance Explained by Zones</div>
+            <div class="text-xl font-extrabold text-sky-700 font-mono mt-0.5">48.2%</div>
+          </div>
+          <div class="p-3 bg-purple-50 rounded-xl border border-purple-100">
+            <div class="text-[10px] text-purple-800 uppercase font-bold">Sensor Noise Reduction</div>
+            <div class="text-xl font-extrabold text-purple-700 font-mono mt-0.5">-18.4% σ</div>
+          </div>
+        </div>
+
+        <div class="p-3 bg-slate-50 rounded-xl text-[11px] text-slate-600 space-y-1">
+          <div>• <strong>Industrial vs Eco Sanctuary:</strong> Very large effect size (Cohen's d = 1.62, mean difference +77.4 µg/m³).</div>
+          <div>• <strong>Precipitation Scavenging:</strong> Wet deposition washes out PM2.5 with half-life ~81 min during convective rain events.</div>
+          <div>• <strong>Wind Dispersion:</strong> Inversion layer decoupling occurs at wind velocity v &gt; 3.2 m/s.</div>
+        </div>
+      </div>
+
+      <div class="flex justify-between items-center pt-2 border-t border-slate-100">
+        <button onclick="openModal('statsModal'); closeModal('diagnosticsModal')" class="text-brand-500 text-xs font-bold hover:underline">View Full ANOVA Equations & Matrix →</button>
+        <button onclick="closeModal('diagnosticsModal')" class="px-4 py-2 bg-brand-dark text-white text-xs font-bold rounded-xl hover:bg-slate-800 transition">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- MODAL 4: FULL PIPELINE AUDIT REPORT MODAL                     -->
+  <!-- ============================================================== -->
+  <div id="reportModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
+    <div class="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+        <h3 class="text-base font-bold text-brand-dark flex items-center gap-2">
+          <span>📋</span> Official Atmospheric & Sensor Audit Report
+        </h3>
+        <button onclick="closeModal('reportModal')" class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 font-bold text-xs">✕</button>
+      </div>
+
+      <div class="space-y-2.5 text-xs text-slate-600 mb-5">
+        <div class="flex justify-between p-2.5 bg-slate-50 rounded-xl">
+          <span class="font-semibold text-slate-700">Total Ingested Telemetry:</span>
+          <span class="font-bold text-brand-dark font-mono">43,800 Hourly Observations</span>
+        </div>
+        <div class="flex justify-between p-2.5 bg-slate-50 rounded-xl">
+          <span class="font-semibold text-slate-700">Non-Physical Outliers Excised:</span>
+          <span class="font-bold text-amber-600 font-mono">2,573 Spikes (Rolling IQR 24h)</span>
+        </div>
+        <div class="flex justify-between p-2.5 bg-slate-50 rounded-xl">
+          <span class="font-semibold text-slate-700">Negative Baseline Zero-Drifts:</span>
+          <span class="font-bold text-sky-600 font-mono">942 Corrected Readings</span>
+        </div>
+        <div class="flex justify-between p-2.5 bg-slate-50 rounded-xl">
+          <span class="font-semibold text-slate-700">Missing Values Imputed (MICE / Spline):</span>
+          <span class="font-bold text-purple-600 font-mono">258,897 Points</span>
+        </div>
+        <div class="flex justify-between p-2.5 bg-emerald-50 rounded-xl border border-emerald-100">
+          <span class="font-bold text-emerald-800">Final Data Completeness:</span>
+          <span class="font-extrabold text-emerald-700 font-mono">100.00% (From 96.91%)</span>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+        <button onclick="downloadCleanedCsv()" class="px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5">
+          <span>📥</span> Download Cleaned CSV
+        </button>
+        <button onclick="closeModal('reportModal')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- MODAL 5: 14-DAY EXTENDED FORECAST MODAL                        -->
+  <!-- ============================================================== -->
+  <div id="forecastModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
+    <div class="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl border border-slate-200">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-200 mb-5">
+        <div class="flex items-center gap-2">
+          <span class="text-2xl">🌦️</span>
+          <div>
+            <h3 class="text-lg font-extrabold text-brand-dark">14-Day Synoptic Atmospheric Forecast & Wet Scavenging Matrix</h3>
+            <p class="text-xs text-slate-500">Metropolitan Air Basin — Seasonal Monsoon Transition Period (May 2026)</p>
+          </div>
+        </div>
+        <button onclick="closeModal('forecastModal')" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 font-bold text-sm">✕</button>
+      </div>
+
+      <!-- Forecast Table -->
+      <div class="overflow-x-auto border border-slate-200 rounded-2xl mb-5">
+        <table class="w-full text-xs text-left">
+          <thead class="bg-slate-50 text-slate-500 font-bold uppercase text-[10px] tracking-wider border-b border-slate-200">
+            <tr>
+              <th class="p-3">Date</th>
+              <th class="p-3">Condition</th>
+              <th class="p-3">Temp (Min/Max)</th>
+              <th class="p-3">Precipitation</th>
+              <th class="p-3">Wind / Inversion</th>
+              <th class="p-3">Projected AQI</th>
+              <th class="p-3">Washout Impact</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100 font-medium text-slate-700">
+            <tr class="hover:bg-slate-50 bg-sky-50/40">
+              <td class="p-3 font-bold text-brand-dark">Today (May 13)</td>
+              <td class="p-3">🌧️ Heavy Rain</td>
+              <td class="p-3">22°C / 26°C</td>
+              <td class="p-3 font-bold text-sky-600">45.2 mm</td>
+              <td class="p-3">15 km/h NW</td>
+              <td class="p-3"><span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px]">48 Good</span></td>
+              <td class="p-3 text-emerald-600 font-bold">High (-65%)</td>
+            </tr>
+            <tr class="hover:bg-slate-50">
+              <td class="p-3 font-bold">May 14</td>
+              <td class="p-3">⛅ Partly Cloudy</td>
+              <td class="p-3">24°C / 30°C</td>
+              <td class="p-3 text-slate-500">2.4 mm</td>
+              <td class="p-3">18 km/h W</td>
+              <td class="p-3"><span class="px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 font-bold text-[10px]">72 Moderate</span></td>
+              <td class="p-3 text-slate-400">Minimal (-8%)</td>
+            </tr>
+            <tr class="hover:bg-slate-50">
+              <td class="p-3 font-bold">May 15</td>
+              <td class="p-3">🌧️ Showers</td>
+              <td class="p-3">23°C / 28°C</td>
+              <td class="p-3 text-sky-600">18.0 mm</td>
+              <td class="p-3">16 km/h N</td>
+              <td class="p-3"><span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px]">55 Moderate</span></td>
+              <td class="p-3 text-emerald-600 font-bold">Moderate (-42%)</td>
+            </tr>
+            <tr class="hover:bg-slate-50">
+              <td class="p-3 font-bold">May 16</td>
+              <td class="p-3">🌦️ Scattered Rain</td>
+              <td class="p-3">23°C / 29°C</td>
+              <td class="p-3 text-sky-600">12.5 mm</td>
+              <td class="p-3">20 km/h NW</td>
+              <td class="p-3"><span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px]">62 Moderate</span></td>
+              <td class="p-3 text-emerald-600 font-bold">Moderate (-35%)</td>
+            </tr>
+            <tr class="hover:bg-slate-50">
+              <td class="p-3 font-bold">May 17</td>
+              <td class="p-3">🌧️ Heavy Rain</td>
+              <td class="p-3">21°C / 26°C</td>
+              <td class="p-3 text-sky-600">38.0 mm</td>
+              <td class="p-3">12 km/h W</td>
+              <td class="p-3"><span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px]">45 Good</span></td>
+              <td class="p-3 text-emerald-600 font-bold">High (-60%)</td>
+            </tr>
+            <tr class="hover:bg-slate-50">
+              <td class="p-3 font-bold">May 18</td>
+              <td class="p-3">🌤️ Sunny Intervals</td>
+              <td class="p-3">24°C / 31°C</td>
+              <td class="p-3 text-slate-500">1.0 mm</td>
+              <td class="p-3">22 km/h NE</td>
+              <td class="p-3"><span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold text-[10px]">88 Unhealthy/Sen</span></td>
+              <td class="p-3 text-slate-400">Negligible</td>
+            </tr>
+            <tr class="hover:bg-slate-50">
+              <td class="p-3 font-bold">May 19 - May 26</td>
+              <td class="p-3">⛅ Variable Monsoonal</td>
+              <td class="p-3">23°C - 32°C</td>
+              <td class="p-3 text-sky-600">Avg 14.8 mm/d</td>
+              <td class="p-3">14-22 km/h</td>
+              <td class="p-3"><span class="px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 font-bold text-[10px]">65-82 Moderate</span></td>
+              <td class="p-3 text-slate-600">Periodic Washout</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="flex justify-end">
+        <button onclick="closeModal('forecastModal')" class="px-4 py-2 bg-brand-dark text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition">Close Forecast</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- MODAL 6: SENSOR DIAGNOSTICS MODAL                              -->
+  <!-- ============================================================== -->
+  <div id="stationDetailModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
+    <div class="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl border border-slate-200">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-200 mb-5">
+        <div class="flex items-center gap-2">
+          <span class="text-2xl">📡</span>
+          <div>
+            <h3 class="text-lg font-extrabold text-brand-dark">Municipal Sensor Node Diagnostics & QA Calibration Stream</h3>
+            <p class="text-xs text-slate-500">Live Hardware Telemetry, ADC Freezes, Optical Dust Counters & Imputation Quality</p>
+          </div>
+        </div>
+        <button onclick="closeModal('stationDetailModal')" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 font-bold text-sm">✕</button>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5" id="stationDiagnosticsGrid">
+        <!-- Station diagnostics populated dynamically -->
+      </div>
+
+      <div class="flex justify-end gap-3 pt-3 border-t border-slate-200">
+        <button onclick="downloadCleanedCsv()" class="px-4 py-2 bg-brand-500 text-white rounded-xl text-xs font-bold hover:bg-brand-600 transition">Export Sensor Calibration Log</button>
+        <button onclick="closeModal('stationDetailModal')" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-200 transition">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- MODAL 7: DIURNAL & PRECIPITATION SCAVENGING PHYSICS            -->
+  <!-- ============================================================== -->
+  <div id="diurnalModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop">
+    <div class="bg-white rounded-3xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl border border-slate-200">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-200 mb-4">
+        <div class="flex items-center gap-2">
+          <span class="text-2xl">📊</span>
+          <div>
+            <h3 class="text-lg font-extrabold text-brand-dark">Diurnal Dynamics & Precipitation Scavenging Mechanics</h3>
+            <p class="text-xs text-slate-500">24-Hour Diurnal Profiles, Boundary Layer Inversions & Wet Aerosol Washout Efficiency</p>
+          </div>
+        </div>
+        <button onclick="closeModal('diurnalModal')" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 font-bold text-sm">✕</button>
+      </div>
+
+      <div class="grid grid-cols-3 gap-3 mb-4 text-center">
+        <div class="p-3 bg-brand-50 rounded-2xl border border-brand-100">
+          <div class="text-[10px] text-brand-500 uppercase font-bold">Rain Scavenging Rate (Λ)</div>
+          <div class="text-lg font-extrabold text-brand-dark font-mono mt-0.5">1.42 × 10⁻⁴ s⁻¹</div>
+          <div class="text-[10px] text-slate-500 mt-1">Washout half-life ~81 minutes</div>
+        </div>
+        <div class="p-3 bg-amber-50 rounded-2xl border border-amber-100">
+          <div class="text-[10px] text-amber-700 uppercase font-bold">Morning Traffic Peak</div>
+          <div class="text-lg font-extrabold text-amber-800 font-mono mt-0.5">07:00 – 09:00 AM</div>
+          <div class="text-[10px] text-slate-500 mt-1">Commuter NO₂ & particulate crest</div>
+        </div>
+        <div class="p-3 bg-purple-50 rounded-2xl border border-purple-100">
+          <div class="text-[10px] text-purple-700 uppercase font-bold">Nocturnal Inversion Peak</div>
+          <div class="text-lg font-extrabold text-purple-800 font-mono mt-0.5">21:00 – 02:00 AM</div>
+          <div class="text-[10px] text-slate-500 mt-1">Shallow boundary layer (&lt; 250m)</div>
+        </div>
+      </div>
+
+      <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 mb-4 text-xs text-slate-700 leading-relaxed">
+        <div class="font-bold text-brand-dark mb-1.5">Atmospheric Aerosol Scavenging Physics:</div>
+        <p class="mb-2">
+          During precipitation, particulate matter is removed via wet deposition following exponential decay:
+          <span class="font-mono bg-white px-2 py-0.5 rounded border border-slate-200 font-bold">C(t) = C₀ · exp(-Λ · t)</span>
+          where <span class="font-mono">Λ = a · Rᵇ</span> (<span class="font-mono">R</span> is rain rate in mm/hr). During heavy convective rain (45.2 mm/hr), ambient PM2.5 drops by 65% within 90 minutes.
+        </p>
+      </div>
+
+      <div class="flex justify-end">
+        <button onclick="closeModal('diurnalModal')" class="px-4 py-2 bg-brand-dark text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- JAVASCRIPT: DATA PIPELINE, LEAFLET MAP & CHART.JS ENGINE       -->
+  <!-- ============================================================== -->
+  <script>
+    // ----------------------------------------------------------------
+    // 1. BUILT-IN REALISTIC MOCK JSON DATA (MULTI-STATION TELEMETRY)
+    // ----------------------------------------------------------------
+    const STATIONS = [
+      {
+        id: "STN_002",
+        name: "North Industrial Estate",
+        zone: "Heavy Industrial Zone",
+        lat: 28.7180,
+        lon: 77.1685,
+        pm25: 115.8,
+        pm10: 210.4,
+        no2: 82.3,
+        aqi: 184,
+        aqiLevel: "Unhealthy",
+        temp: 28,
+        humidity: 76,
+        wind: 24,
+        windDir: "WNW",
+        pressure: 1009,
+        condition: "Industrial Haze & Smelting",
+        icon: "🏭",
+        statusColor: "#EF4444",      // Red center
+        haloColor: "#F97316",        // Orange mid
+        outerColor: "#FBBF24",       // Amber wave
+        plumeRadius: 4200,
+        outliersExcised: 924,
+        driftCorrection: "-0.88 mV",
+        adcRecovery: "100%"
+      },
+      {
+        id: "STN_005",
+        name: "Port Freight Logistics",
+        zone: "Transport & Logistics Corridor",
+        lat: 28.6810,
+        lon: 77.3105,
+        pm25: 92.4,
+        pm10: 185.2,
+        no2: 76.5,
+        aqi: 170,
+        aqiLevel: "Unhealthy",
+        temp: 27,
+        humidity: 80,
+        wind: 20,
+        windDir: "NW",
+        pressure: 1010,
+        condition: "Diesel Drayage Corridor",
+        icon: "🚛",
+        statusColor: "#F97316",      // Orange center
+        haloColor: "#FBBF24",        // Amber mid
+        outerColor: "#FDE047",       // Light amber wave
+        plumeRadius: 3600,
+        outliersExcised: 542,
+        driftCorrection: "-0.54 mV",
+        adcRecovery: "100%"
+      },
+      {
+        id: "STN_001",
+        name: "Central Metro Hub",
+        zone: "Commercial & Urban Core",
+        lat: 28.6328,
+        lon: 77.2197,
+        pm25: 72.0,
+        pm10: 140.8,
+        no2: 65.2,
+        aqi: 159,
+        aqiLevel: "Unhealthy for Sensitive Groups",
+        temp: 26,
+        humidity: 85,
+        wind: 15,
+        windDir: "NW",
+        pressure: 1011,
+        condition: "Dense Commuter Traffic",
+        icon: "🏙️",
+        statusColor: "#EAB308",      // Amber-yellow center
+        haloColor: "#38BDF8",        // Cyan mid
+        outerColor: "#93C5FD",       // Soft blue wave
+        plumeRadius: 3100,
+        outliersExcised: 489,
+        driftCorrection: "-0.35 mV",
+        adcRecovery: "100%"
+      },
+      {
+        id: "STN_004",
+        name: "South Tech Campus",
+        zone: "Institutional & Mixed Zone",
+        lat: 28.5355,
+        lon: 77.1990,
+        pm25: 54.0,
+        pm10: 98.4,
+        no2: 42.1,
+        aqi: 147,
+        aqiLevel: "Moderate",
+        temp: 25,
+        humidity: 86,
+        wind: 14,
+        windDir: "NNW",
+        pressure: 1012,
+        condition: "Suburban Green Buffer",
+        icon: "🎓",
+        statusColor: "#0284C7",      // Blue center
+        haloColor: "#38BDF8",        // Light blue mid
+        outerColor: "#BAE6FD",       // Sky wave
+        plumeRadius: 2800,
+        outliersExcised: 400,
+        driftCorrection: "-0.28 mV",
+        adcRecovery: "100%"
+      },
+      {
+        id: "STN_003",
+        name: "Riverside Eco Sanctuary",
+        zone: "Residential & Forest Belt",
+        lat: 28.5684,
+        lon: 77.2891,
+        pm25: 38.4,
+        pm10: 68.2,
+        no2: 24.8,
+        aqi: 48,
+        aqiLevel: "Good",
+        temp: 24,
+        humidity: 92,
+        wind: 12,
+        windDir: "N",
+        pressure: 1014,
+        condition: "Vegetative Sink & Rain Washout",
+        icon: "🌿",
+        statusColor: "#10B981",      // Emerald center
+        haloColor: "#34D399",        // Mint mid
+        outerColor: "#FACC15",       // Yellow/lime outer wave
+        plumeRadius: 4800,
+        outliersExcised: 218,
+        driftCorrection: "-0.15 mV",
+        adcRecovery: "100%"
+      }
+    ];
+
+    // 7-Day Forecast Data Array
+    const FORECAST_DAYS = [
+      { day: "13", label: "May 13", temp: 22, hum: 84, wind: 14, pres: 1012, icon: "🌧️", cond: "Heavy Rain & Washout", aqi: 48, aqiLevel: "Good" },
+      { day: "14", label: "May 14", temp: 25, hum: 65, wind: 18, pres: 1014, icon: "⛅", cond: "Partly Cloudy", aqi: 72, aqiLevel: "Moderate" },
+      { day: "15", label: "May 15", temp: 23, hum: 78, wind: 16, pres: 1011, icon: "🌧️", cond: "Showers & Dispersion", aqi: 55, aqiLevel: "Moderate" },
+      { day: "16", label: "May 16", temp: 23, hum: 72, wind: 20, pres: 1013, icon: "🌦️", cond: "Scattered Rain", aqi: 62, aqiLevel: "Moderate" },
+      { day: "17", label: "May 17", temp: 21, hum: 90, wind: 12, pres: 1008, icon: "🌧️", cond: "Heavy Rain Front", aqi: 45, aqiLevel: "Good" },
+      { day: "18", label: "May 18", temp: 24, hum: 62, wind: 22, pres: 1015, icon: "🌤️", cond: "Sunny Intervals", aqi: 88, aqiLevel: "Moderate" },
+      { day: "Today", label: "Today", temp: 26, hum: 88, wind: 15, pres: 1010, icon: "🌧️", cond: "Convective Rain Washout", aqi: 48, aqiLevel: "Good" }
+    ];
+
+    // Seasonal Trends Data: Jan to Sep/Dec (Cleaned vs Raw with Spikes)
+    const TREND_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    
+    // Dataset profiles per pollutant
+    const POLLUTANT_DATA = {
+      PM25: {
+        cleaned: [135, 122, 98, 76, 48, 52, 64, 70, 82, 128, 184, 165],
+        raw:     [180, 165, 142, 76, 85, 52, 98, 70, 130, 210, 275, 230],
+        unit: "µg/m³",
+        yMax: 300,
+        benchmark: "WHO Guide: 15 µg/m³"
+      },
+      PM10: {
+        cleaned: [240, 215, 180, 142, 95, 102, 118, 125, 145, 220, 295, 270],
+        raw:     [310, 280, 245, 142, 148, 102, 165, 125, 215, 330, 410, 360],
+        unit: "µg/m³",
+        yMax: 450,
+        benchmark: "WHO Guide: 45 µg/m³"
+      },
+      NO2: {
+        cleaned: [75, 68, 58, 50, 34, 38, 42, 45, 52, 70, 92, 85],
+        raw:     [98, 92, 80, 50, 58, 38, 62, 45, 78, 112, 135, 118],
+        unit: "µg/m³",
+        yMax: 150,
+        benchmark: "WHO Guide: 25 µg/m³"
+      },
+      AQI: {
+        cleaned: [192, 185, 172, 161, 48, 100, 100, 126, 82, 188, 235, 215],
+        raw:     [245, 238, 225, 161, 88, 100, 135, 126, 132, 260, 310, 280],
+        unit: "AQI",
+        yMax: 350,
+        benchmark: "Safe Standard: 50"
+      }
+    };
+
+    // Hourly precipitation & PM2.5 scavenging washout
+    const HOURLY_LABELS = ["00:00", "02:00", "04:00", "06:00", "08:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00", "22:00"];
+    const HOURLY_RAIN = [2, 3, 5, 8, 14, 22, 34, 48, 42, 28, 12, 4];
+    const HOURLY_WASHOUT = [10, 15, 22, 35, 50, 68, 85, 92, 88, 65, 38, 18];
+
+    // Global App State
+    let map, mapLayers = {}, heatmapGroup;
+    let currentStation = null;
+    let isFahrenheit = false;
+    let selectedPollutant = "PM25";
+    let isShowingCleaned = true;
+    let precipDisplayMode = "rain";
+    let aqiChartInstance = null;
+    let precipChartInstance = null;
+    let isDataStreaming = true;
+    let streamTimer = null;
+
+    // ----------------------------------------------------------------
+    // 2. LEAFLET INTERACTIVE MAP INITIALIZATION (NO API KEYS NEEDED)
+    // ----------------------------------------------------------------
+    function initLeafletMap() {
+      // Base coordinates: Delhi-NCR Metropolitan Basin (28.62, 77.24)
+      map = L.map('mapContainer', {
+        center: [28.6280, 77.2400],
+        zoom: 11,
+        zoomControl: false,
+        attributionControl: false
+      });
+
+      // 1. CartoDB Positron: Pristine, soft-blue/white aesthetic matching dashboard
+      mapLayers.positron = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19,
+        subdomains: 'abcd'
+      });
+
+      // 2. Standard OpenStreetMap Layer (100% free fallback)
+      mapLayers.osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19
+      });
+
+      // 3. Satellite Imagery (Esri World Imagery)
+      mapLayers.satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 19
+      });
+
+      // Add default Positron layer
+      mapLayers.positron.addTo(map);
+
+      // Layer group for station plumes and concentric multi-ring markers
+      heatmapGroup = L.layerGroup().addTo(map);
+      drawConcentricStationMarkers();
+
+      // Ensure proper Leaflet container sizing
+      setTimeout(() => { if (map) map.invalidateSize(); }, 100);
+      setTimeout(() => { if (map) map.invalidateSize(); }, 400);
+    }
+
+    // Draw concentric multi-ring heat-zone markers for all 5 monitoring stations
+    function drawConcentricStationMarkers() {
+      heatmapGroup.clearLayers();
+
+      STATIONS.forEach(s => {
+        // Atmospheric Plume Dispersion Halo (Circle on Map)
+        L.circle([s.lat, s.lon], {
+          radius: s.plumeRadius,
+          color: s.statusColor,
+          weight: 1,
+          opacity: 0.25,
+          fillColor: s.statusColor,
+          fillOpacity: 0.18
+        }).addTo(heatmapGroup);
+
+        // Concentric Multi-Ring DOM Marker HTML
+        const markerHtml = `
+          <div class="heat-ring-marker" title="${s.name} (${s.pm25} µg/m³ PM2.5)">
+            <div class="heat-ring-outer" style="background: ${s.outerColor};"></div>
+            <div class="heat-ring-mid" style="background: ${s.haloColor};"></div>
+            <div class="heat-ring-core" style="border: 3.5px solid ${s.statusColor};"></div>
+          </div>
+        `;
+
+        const icon = L.divIcon({
+          className: 'custom-heat-icon',
+          html: markerHtml,
+          iconSize: [48, 48],
+          iconAnchor: [24, 24]
+        });
+
+        const marker = L.marker([s.lat, s.lon], { icon }).addTo(heatmapGroup);
+
+        // Click station to update entire dashboard
+        marker.on('click', () => {
+          selectStation(s);
+        });
+
+        // Popup with station metrics
+        marker.bindPopup(`
+          <div style="font-family:'Plus Jakarta Sans', sans-serif; padding: 4px; min-width: 170px;">
+            <div style="font-size: 11px; font-weight: 800; color: #1B2559;">${s.name}</div>
+            <div style="font-size: 9px; color: #707EAE; margin-bottom: 6px;">${s.zone}</div>
+            <div style="display: flex; align-items: baseline; justify-content: space-between; border-top: 1px solid #E9EDF7; pt: 4px;">
+              <span style="font-size: 16px; font-weight: 800; color: ${s.statusColor}; font-family: monospace;">${s.pm25} µg</span>
+              <span style="font-size: 10px; font-weight: 700; color: #1B2559;">${s.aqiLevel}</span>
+            </div>
+            <div style="font-size: 9px; color: #10B981; font-weight: 700; margin-top: 4px;">● Cleaned Telemetry Stream</div>
+          </div>
+        `, { closeButton: false, offset: [0, -14] });
+      });
+    }
+
+    // Map Layer Switcher
+    function switchMapLayer(mode) {
+      document.querySelectorAll('.map-pill').forEach(btn => {
+        btn.classList.remove('map-pill-active');
+        btn.classList.add('map-pill-inactive');
+      });
+
+      if (map.hasLayer(mapLayers.positron)) map.removeLayer(mapLayers.positron);
+      if (map.hasLayer(mapLayers.osm)) map.removeLayer(mapLayers.osm);
+      if (map.hasLayer(mapLayers.satellite)) map.removeLayer(mapLayers.satellite);
+
+      if (mode === 'positron') {
+        mapLayers.positron.addTo(map);
+        document.getElementById('pillPositron').classList.add('map-pill-active');
+        document.getElementById('pillPositron').classList.remove('map-pill-inactive');
+      } else if (mode === 'osm') {
+        mapLayers.osm.addTo(map);
+        document.getElementById('pillOsm').classList.add('map-pill-active');
+        document.getElementById('pillOsm').classList.remove('map-pill-inactive');
+      } else if (mode === 'satellite') {
+        mapLayers.satellite.addTo(map);
+        document.getElementById('pillSatellite').classList.add('map-pill-active');
+        document.getElementById('pillSatellite').classList.remove('map-pill-inactive');
+      }
+      map.invalidateSize();
+    }
+
+    function toggleHeatmapPlumes() {
+      if (map.hasLayer(heatmapGroup)) {
+        map.removeLayer(heatmapGroup);
+      } else {
+        map.addLayer(heatmapGroup);
+      }
+    }
+
+    function resetMapOrientation() {
+      map.setView([28.6280, 77.2400], 11);
+    }
+
+    function mapZoomIn() { map.zoomIn(); }
+    function mapZoomOut() { map.zoomOut(); }
+
+    // ----------------------------------------------------------------
+    // 3. CHART.JS ENGINE: STEPPED/LINE AQI AREA CHART
+    // ----------------------------------------------------------------
+    function initAqiTrendChart() {
+      const ctx = document.getElementById('aqiTrendCanvas').getContext('2d');
+      const dataConfig = POLLUTANT_DATA[selectedPollutant];
+      const dataValues = isShowingCleaned ? dataConfig.cleaned : dataConfig.raw;
+
+      // Gradient Fill
+      const gradient = ctx.createLinearGradient(0, 0, 0, 190);
+      if (isShowingCleaned) {
+        gradient.addColorStop(0, 'rgba(67, 24, 255, 0.28)');
+        gradient.addColorStop(1, 'rgba(67, 24, 255, 0.01)');
+      } else {
+        gradient.addColorStop(0, 'rgba(239, 68, 68, 0.32)');
+        gradient.addColorStop(1, 'rgba(239, 68, 68, 0.02)');
+      }
+
+      if (aqiChartInstance) {
+        aqiChartInstance.destroy();
+      }
+
+      aqiChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: TREND_MONTHS,
+          datasets: [{
+            label: isShowingCleaned ? `Cleaned & Imputed ${selectedPollutant}` : `Raw Noisy ${selectedPollutant}`,
+            data: dataValues,
+            stepped: 'middle',
+            borderColor: isShowingCleaned ? '#4318FF' : '#EF4444',
+            borderWidth: 2.5,
+            pointBackgroundColor: '#FFFFFF',
+            pointBorderColor: isShowingCleaned ? '#4318FF' : '#EF4444',
+            pointBorderWidth: 2,
+            pointRadius: 4,
+            pointHoverRadius: 7,
+            pointHoverBackgroundColor: isShowingCleaned ? '#4318FF' : '#EF4444',
+            pointHoverBorderColor: '#FFFFFF',
+            pointHoverBorderWidth: 2.5,
+            fill: true,
+            backgroundColor: gradient,
+            tension: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: {
+            intersect: false,
+            mode: 'index'
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              enabled: true,
+              backgroundColor: '#1B2559',
+              titleColor: '#A3AED0',
+              bodyColor: '#FFFFFF',
+              titleFont: { family: 'Plus Jakarta Sans', size: 10, weight: '700' },
+              bodyFont: { family: 'Plus Jakarta Sans', size: 12, weight: '800' },
+              padding: 10,
+              cornerRadius: 10,
+              displayColors: false,
+              callbacks: {
+                title: function(items) {
+                  return `${items[0].label} 2026 Telemetry`;
+                },
+                label: function(context) {
+                  const val = context.parsed.y;
+                  const tag = context.dataIndex === 4 ? ' (Monsoon Washout)' : (context.dataIndex >= 9 ? ' (Inversion Spikes)' : ' (Norm)');
+                  return `${selectedPollutant}: ${val} ${dataConfig.unit}${tag}`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: {
+                color: '#707EAE',
+                font: { family: 'Plus Jakarta Sans', size: 10, weight: '600' }
+              }
+            },
+            y: {
+              beginAtZero: true,
+              max: dataConfig.yMax,
+              grid: {
+                color: '#E9EDF7',
+                drawBorder: false
+              },
+              ticks: {
+                color: '#A3AED0',
+                font: { family: 'Plus Jakarta Sans', size: 10 },
+                stepSize: dataConfig.yMax / 4
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function setPollutant(pollutant) {
+      selectedPollutant = pollutant;
+      ['PM25', 'PM10', 'NO2', 'AQI'].forEach(p => {
+        const btn = document.getElementById(`pollutantBtn_${p}`);
+        if (p === pollutant) {
+          btn.className = "px-2 py-0.5 rounded-md bg-white text-brand-500 shadow-sm transition font-bold";
+        } else {
+          btn.className = "px-2 py-0.5 rounded-md text-slate-600 hover:text-brand-dark transition font-semibold";
+        }
+      });
+      initAqiTrendChart();
+    }
+
+    function toggleDataCleaningView() {
+      isShowingCleaned = !isShowingCleaned;
+      const btn = document.getElementById('cleanToggleBtn');
+      const icon = document.getElementById('cleanToggleIcon');
+      const text = document.getElementById('cleanToggleText');
+
+      if (isShowingCleaned) {
+        btn.className = "text-[10px] font-bold px-2.5 py-1 rounded-full border transition flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border-emerald-200";
+        icon.className = "w-1.5 h-1.5 rounded-full bg-emerald-500";
+        text.innerText = "Cleaned & Imputed Data";
+        document.getElementById('seasonalInsightText').innerHTML = "🌦️ <strong>Monsoon rain scavenging:</strong> May-Jul precipitation washes out PM2.5 to annual minimum (~48 µg).";
+      } else {
+        btn.className = "text-[10px] font-bold px-2.5 py-1 rounded-full border transition flex items-center gap-1.5 bg-rose-50 text-rose-700 border-rose-200";
+        icon.className = "w-1.5 h-1.5 rounded-full bg-rose-500";
+        text.innerText = "Raw Noisy Data (Outliers)";
+        document.getElementById('seasonalInsightText').innerHTML = "⚠️ <strong>Raw sensor noise:</strong> Contains 2,573 optical noise spikes & 942 baseline negative drift artifacts.";
+      }
+
+      initAqiTrendChart();
+    }
+
+    // ----------------------------------------------------------------
+    // 4. CHART.JS ENGINE: HOURLY PRECIPITATION & WASHOUT BAR CHART
+    // ----------------------------------------------------------------
+    function initPrecipHourlyChart() {
+      const ctx = document.getElementById('precipHourlyCanvas').getContext('2d');
+      const isRain = precipDisplayMode === 'rain';
+      const values = isRain ? HOURLY_RAIN : HOURLY_WASHOUT;
+
+      if (precipChartInstance) {
+        precipChartInstance.destroy();
+      }
+
+      precipChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: HOURLY_LABELS,
+          datasets: [{
+            data: values,
+            backgroundColor: values.map((_, i) => i === 7 ? '#EF4444' : (isRain ? '#38BDF8' : '#10B981')),
+            borderRadius: 4,
+            barThickness: 8
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#1B2559',
+              bodyFont: { family: 'Plus Jakarta Sans', size: 11, weight: '700' },
+              padding: 6,
+              cornerRadius: 6,
+              callbacks: {
+                label: function(c) {
+                  return isRain ? `${c.parsed.y} mm Rain` : `${c.parsed.y}% PM2.5 Scavenged`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: {
+                color: '#707EAE',
+                font: { family: 'Plus Jakarta Sans', size: 8, weight: '600' },
+                maxRotation: 0,
+                autoSkip: true,
+                maxTicksLimit: 6
+              }
+            },
+            y: {
+              display: false,
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    }
+
+    function switchPrecipMode(mode) {
+      precipDisplayMode = mode;
+      const rainBtn = document.getElementById('precipModeRain');
+      const pmBtn = document.getElementById('precipModePm');
+
+      if (mode === 'rain') {
+        rainBtn.className = "px-2 py-0.5 rounded-md bg-white text-brand-500 shadow-sm font-bold";
+        pmBtn.className = "px-2 py-0.5 rounded-md text-slate-600 hover:text-brand-dark font-semibold";
+        document.getElementById('precipLabel').innerText = "Daily Rainfall";
+        document.getElementById('precipValue').innerHTML = '12.4 mm <span class="text-[10px] font-normal text-slate-500">Today</span>';
+      } else {
+        pmBtn.className = "px-2 py-0.5 rounded-md bg-white text-brand-500 shadow-sm font-bold";
+        rainBtn.className = "px-2 py-0.5 rounded-md text-slate-600 hover:text-brand-dark font-semibold";
+        document.getElementById('precipLabel').innerText = "Wet Scavenging";
+        document.getElementById('precipValue').innerHTML = '68% <span class="text-[10px] font-normal text-slate-500">Aerosols Removed</span>';
+      }
+
+      initPrecipHourlyChart();
+    }
+
+    // ----------------------------------------------------------------
+    // 5. 7-DAY FORECAST STRIP RENDERING & INTERACTION
+    // ----------------------------------------------------------------
+    function renderForecastStrip() {
+      const container = document.getElementById('forecastStrip');
+      container.innerHTML = FORECAST_DAYS.map((d, idx) => `
+        <div onclick="selectForecastDay(${idx})" class="day-pill ${idx === 6 ? 'active' : ''} flex flex-col items-center gap-1">
+          <span class="text-[10px] font-bold ${idx === 6 ? 'text-brand-500' : 'text-slate-600'}">${d.day}</span>
+          <span class="text-base">${d.icon}</span>
+          <span class="text-[10px] font-extrabold ${idx === 6 ? 'text-brand-dark' : 'text-slate-800'}">${d.temp}°</span>
+        </div>
+      `).join('');
+    }
+
+    function selectForecastDay(idx) {
+      document.querySelectorAll('.day-pill').forEach((pill, i) => {
+        pill.classList.toggle('active', i === idx);
+      });
+
+      const dayData = FORECAST_DAYS[idx];
+      const displayTemp = isFahrenheit ? Math.round(dayData.temp * 1.8 + 32) : dayData.temp;
+      
+      document.getElementById('detailTemp').innerText = displayTemp;
+      document.getElementById('detailCondition').innerText = dayData.cond;
+      document.getElementById('detailHumidity').innerText = dayData.hum + '%';
+      document.getElementById('detailWind').innerText = dayData.wind + ' km/h';
+      document.getElementById('detailPressure').innerText = dayData.pres + ' hPa';
+      document.getElementById('weatherIconBox').innerText = dayData.icon;
+      document.getElementById('detailDescription').innerText = `Forecast for ${dayData.label}: ${dayData.cond}. Relative humidity ${dayData.hum}% with active boundary-layer aerosol ventilation.`;
+
+      const badge = document.getElementById('detailAqiBadge');
+      badge.innerText = `AQI ${dayData.aqi} • ${dayData.aqiLevel}`;
+      badge.className = dayData.aqi <= 50 ? 'ml-2 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800' : (dayData.aqi <= 100 ? 'ml-2 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-sky-100 text-sky-800' : 'ml-2 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800');
+    }
+
+    function toggleTempUnit() {
+      isFahrenheit = !isFahrenheit;
+      const currentTemp = parseFloat(document.getElementById('detailTemp').innerText);
+      const converted = isFahrenheit ? Math.round(currentTemp * 1.8 + 32) : Math.round((currentTemp - 32) / 1.8);
+      document.getElementById('detailTemp').innerText = converted;
+      document.getElementById('tempUnit').innerText = isFahrenheit ? '°F' : '°C';
+    }
+
+    // ----------------------------------------------------------------
+    // 6. STATION SELECTION & SYNCHRONIZATION
+    // ----------------------------------------------------------------
+    function selectStation(s) {
+      currentStation = s;
+      document.getElementById('locationLabel').innerText = `${s.name}`;
+      document.getElementById('sidebarStationBadge').innerText = s.zone;
+
+      const displayTemp = isFahrenheit ? Math.round(s.temp * 1.8 + 32) : s.temp;
+      document.getElementById('detailTemp').innerText = displayTemp;
+      document.getElementById('detailCondition').innerText = s.condition;
+      document.getElementById('detailHumidity').innerText = s.humidity + '%';
+      document.getElementById('detailWind').innerText = `${s.wind} km/h ${s.windDir}`;
+      document.getElementById('detailPressure').innerText = s.pressure + ' hPa';
+      document.getElementById('weatherIconBox').innerText = s.icon;
+      document.getElementById('detailDescription').innerText = `Continuous Telemetry Node: ${s.name} (${s.zone}). Current PM2.5 reading: ${s.pm25} µg/m³. Rolling anomaly check passed.`;
+
+      const aqiBadge = document.getElementById('detailAqiBadge');
+      aqiBadge.innerText = `AQI ${s.aqi} • ${s.aqiLevel}`;
+      aqiBadge.className = s.pm25 > 90 ? 'ml-2 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-800' : (s.pm25 > 60 ? 'ml-2 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800' : 'ml-2 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800');
+
+      document.getElementById('maxWindDisplay').innerText = `${Math.round(s.wind * 1.5)} km/h`;
+      document.getElementById('totalRainDisplay').innerText = `${(s.humidity * 0.42).toFixed(1)} mm`;
+
+      map.setView([s.lat, s.lon], 13);
+    }
+
+    function changeZone(stationId, label) {
+      document.getElementById('locationDropdown').classList.add('hidden');
+      if (stationId === 'ALL') {
+        currentStation = null;
+        document.getElementById('locationLabel').innerText = label;
+        document.getElementById('sidebarStationBadge').innerText = "Metropolitan Basin";
+        document.getElementById('maxWindDisplay').innerText = '42 km/h';
+        document.getElementById('totalRainDisplay').innerText = '45.2 mm';
+        resetMapOrientation();
+      } else {
+        const found = STATIONS.find(s => s.id === stationId);
+        if (found) selectStation(found);
+      }
+    }
+
+    function toggleLocationDropdown() {
+      document.getElementById('locationDropdown').classList.toggle('hidden');
+    }
+
+    function toggleCardMenu(menuId) {
+      const menu = document.getElementById(menuId);
+      document.querySelectorAll('[id^="menu"]').forEach(m => {
+        if (m.id !== menuId) m.classList.add('hidden');
+      });
+      menu.classList.toggle('hidden');
+    }
+
+    // ----------------------------------------------------------------
+    // 7. SENSOR DIAGNOSTICS MODAL POPULATION
+    // ----------------------------------------------------------------
+    function populateDiagnosticsGrid() {
+      const grid = document.getElementById('stationDiagnosticsGrid');
+      grid.innerHTML = STATIONS.map(s => `
+        <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+          <div class="flex items-center justify-between mb-2">
+            <div>
+              <span class="font-extrabold text-brand-dark text-xs">${s.id} • ${s.name}</span>
+              <div class="text-[10px] text-slate-400">Lat: ${s.lat.toFixed(4)}° N, Lon: ${s.lon.toFixed(4)}° E</div>
+            </div>
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${s.pm25 > 90 ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}">
+              ${s.pm25 > 90 ? 'SURGE' : 'OPTIMAL'}
+            </span>
+          </div>
+          <div class="space-y-1.5 text-xs text-slate-600">
+            <div class="flex justify-between"><span>PM2.5 Real-Time:</span><strong class="font-mono ${s.pm25 > 90 ? 'text-rose-600' : 'text-emerald-600'}">${s.pm25} µg/m³</strong></div>
+            <div class="flex justify-between"><span>Optical Dust Spikes Excised:</span><span class="text-amber-600 font-mono">${s.outliersExcised} points</span></div>
+            <div class="flex justify-between"><span>ADC Freeze Imputation:</span><span class="text-emerald-600 font-mono">${s.adcRecovery}</span></div>
+            <div class="flex justify-between"><span>Zero Drift Baseline:</span><span class="text-sky-600 font-mono">${s.driftCorrection}</span></div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // ----------------------------------------------------------------
+    // 8. LIVE SIMULATION STREAM & DIGITAL CLOCK
+    // ----------------------------------------------------------------
+    function updateClock() {
+      const now = new Date();
+      const hrs = String(now.getHours()).padStart(2, '0');
+      const mins = String(now.getMinutes()).padStart(2, '0');
+      const secs = String(now.getSeconds()).padStart(2, '0');
+      document.getElementById('liveClockDisplay').innerText = `Local Time: ${hrs}:${mins}:${secs}`;
+    }
+
+    function toggleDataStream() {
+      isDataStreaming = !isDataStreaming;
+      const dot = document.getElementById('streamDot');
+      const label = document.getElementById('streamLabel');
+
+      if (isDataStreaming) {
+        dot.className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
+        label.innerText = "Stream Active";
+        startStreamInterval();
+      } else {
+        dot.className = "w-2 h-2 rounded-full bg-slate-400";
+        label.innerText = "Stream Paused";
+        if (streamTimer) clearInterval(streamTimer);
+      }
+    }
+
+    function startStreamInterval() {
+      if (streamTimer) clearInterval(streamTimer);
+      streamTimer = setInterval(() => {
+        if (!isDataStreaming) return;
+        // Subtle micro-fluctuations simulating real-time telemetry
+        STATIONS.forEach(s => {
+          const delta = (Math.random() - 0.49) * 0.8;
+          s.pm25 = Math.max(15, parseFloat((s.pm25 + delta).toFixed(1)));
+        });
+        if (currentStation) {
+          selectStation(currentStation);
+        }
+      }, 3500);
+    }
+
+    // ----------------------------------------------------------------
+    // 9. CLIENT-SIDE CLEANED CSV EXPORT
+    // ----------------------------------------------------------------
+    function downloadCleanedCsv() {
+      let csv = "timestamp,station_id,station_name,zone,latitude,longitude,pm25_raw,pm25_cleaned,pm10_cleaned,no2_cleaned,temperature_c,humidity_pct,wind_speed_kmh,pressure_hpa,qa_pipeline_flag\n";
+      const now = new Date();
+
+      for (let h = 0; h < 24; h++) {
+        const timeStr = new Date(now.getTime() - (24 - h) * 3600000).toISOString().replace('T', ' ').substring(0, 19);
+        STATIONS.forEach(s => {
+          const noise = (Math.sin(h / 3) * 3.5).toFixed(1);
+          const isSpike = (h === 8 || h === 14);
+          const raw = isSpike ? (s.pm25 + 68.5).toFixed(1) : (s.pm25 + parseFloat(noise)).toFixed(1);
+          const clean = (s.pm25 + parseFloat(noise)).toFixed(1);
+          const flag = isSpike ? "OUTLIER_REPLACED_MICE" : "VALID_TELEMETRY";
+          csv += `${timeStr},${s.id},"${s.name}","${s.zone}",${s.lat},${s.lon},${raw},${clean},${s.pm10},${s.no2},${s.temp},${s.humidity},${s.wind},${s.pressure},${flag}\n`;
+        });
+      }
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'cleaned_air_quality_pipeline.csv';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+
+    // ----------------------------------------------------------------
+    // 10. MODAL UTILITIES
+    // ----------------------------------------------------------------
+    function openModal(modalId) {
+      const modal = document.getElementById(modalId);
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeModal(modalId) {
+      const modal = document.getElementById(modalId);
+      if (modal) modal.classList.add('hidden');
+    }
+
+    // Close menus on outside click
+    window.addEventListener('click', (e) => {
+      if (!e.target.closest('#locationBtn') && !e.target.closest('#locationDropdown')) {
+        document.getElementById('locationDropdown').classList.add('hidden');
+      }
+      if (!e.target.closest('button')) {
+        document.querySelectorAll('[id^="menu"]').forEach(m => m.classList.add('hidden'));
+      }
+    });
+
+    // ----------------------------------------------------------------
+    // 11. BOOTSTRAP APPLICATION
+    // ----------------------------------------------------------------
+    window.addEventListener('DOMContentLoaded', () => {
+      // Check for saved localStorage preferences from settings.html
+      try {
+        const saved = localStorage.getItem('aeropulse_pipeline_config');
+        if (saved) {
+          const cfg = JSON.parse(saved);
+          if (cfg.tempUnit === 'F') toggleTempUnit();
+        }
+      } catch (e) {}
+
+      initLeafletMap();
+      initAqiTrendChart();
+      initPrecipHourlyChart();
+      renderForecastStrip();
+      populateDiagnosticsGrid();
+      updateClock();
+      setInterval(updateClock, 1000);
+      startStreamInterval();
+    });
+
+    window.addEventListener('resize', () => {
+      if (map) map.invalidateSize();
+      if (aqiChartInstance) aqiChartInstance.resize();
+      if (precipChartInstance) precipChartInstance.resize();
+    });
+  </script>
+</body>
+</html>
